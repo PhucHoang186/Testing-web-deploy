@@ -1,383 +1,584 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<title>Light Table</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Gallery</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Jost:wght@300;400;500&display=swap">
 <style>
-/* Layout: one large viewing stage on top, a strip of thumbnails below, controls in a slim bar. Safelight accent on cool neutrals. */
+/* ============================================================
+   GALLERY: reads images from the "images" folder of this repo
+   and shows them as a grid + full-screen slideshow.
+
+   Edit the CONFIG block in the script at the bottom of this file to change
+   the title, folder name or slideshow speed.
+   ============================================================ */
 :root {
-  --bg: #eef0f1;
-  --surface: #f8f9f9;
-  --stage: #e1e5e7;
-  --fg: #1c2326;
-  --muted: #5d696e;
-  --line: #cdd4d7;
-  --accent: #c4401a;
-  --accent-fg: #ffffff;
-  --focus: #1c6fb8;
-  --font-display: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
-  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --bg: #ffffff;
+  --fg: #1b1b1b;
+  --muted: #7a7a7a;
+  --line: #ececec;
+  --surface: #f6f6f4;
+  --accent: #1b1b1b;
+  --focus: #2a6fdb;
+  --serif: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --sans: "Jost", system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #121719;
-    --surface: #1a2023;
-    --stage: #0d1113;
-    --fg: #e6eaec;
-    --muted: #94a1a6;
-    --line: #2d373b;
-    --accent: #ee6a42;
-    --accent-fg: #170a05;
-    --focus: #6db3f0;
-    color-scheme: dark;
+  :root {
+    --bg: #101010;
+    --fg: #f1f1ef;
+    --muted: #9a9a96;
+    --line: #242424;
+    --surface: #181818;
+    --accent: #f1f1ef;
+    --focus: #7fb0ff;
   }
 }
-:root[data-theme="dark"] {
-  --bg: #121719;
-  --surface: #1a2023;
-  --stage: #0d1113;
-  --fg: #e6eaec;
-  --muted: #94a1a6;
-  --line: #2d373b;
-  --accent: #ee6a42;
-  --accent-fg: #170a05;
-  --focus: #6db3f0;
-  color-scheme: dark;
-}
-
 * { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 body {
+  margin: 0;
   background: var(--bg);
   color: var(--fg);
-  font-family: var(--font-body);
+  font-family: var(--sans);
+  font-weight: 400;
   font-size: 15px;
   line-height: 1.5;
-  padding-block: 20px 28px;
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  -webkit-font-smoothing: antialiased;
 }
-.wrap { max-width: 920px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 
-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
-h1 {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1.75rem;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-  margin: 0;
+/* ---------- top bar ---------- */
+.topbar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px max(20px, env(safe-area-inset-right)) 14px max(20px, env(safe-area-inset-left));
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.brand { font-family: var(--serif); font-size: 1.35rem; font-weight: 600; letter-spacing: 0.01em; }
+.topbar nav { display: flex; gap: 8px; align-items: center; }
+.link-btn {
+  background: none; border: 0; padding: 8px 10px; min-height: 40px;
+  font-size: 0.78rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg);
+}
+.link-btn:hover { color: var(--muted); }
+
+/* ---------- cover ---------- */
+.cover {
+  position: relative;
+  height: min(78vh, 760px); min-height: 380px;
+  background: #222 center / cover no-repeat;
+  color: #fff;
+  display: flex; align-items: flex-end;
+  overflow: hidden;
+}
+.cover::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.12) 55%, rgba(0,0,0,0.05) 100%);
+}
+.cover-inner {
+  position: relative; z-index: 1; width: 100%; max-width: 1280px; margin: 0 auto;
+  padding: 0 max(24px, env(safe-area-inset-left)) 44px;
+}
+.cover h1 {
+  margin: 0; font-family: var(--serif); font-weight: 500;
+  font-size: clamp(2.4rem, 7vw, 4.6rem); line-height: 1.02; letter-spacing: -0.005em;
   text-wrap: balance;
 }
-.sub { color: var(--muted); font-size: 0.875rem; margin: 2px 0 0; }
+.cover .count { margin: 10px 0 0; font-size: 0.8rem; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.85; }
+.cover-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; }
+.btn {
+  min-height: 44px; padding: 0 26px; border-radius: 0;
+  border: 1px solid rgba(255,255,255,0.85); background: transparent; color: #fff;
+  font-size: 0.78rem; letter-spacing: 0.18em; text-transform: uppercase;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.btn:hover { background: #fff; color: #111; }
+.btn.solid { background: #fff; color: #111; }
+.btn.solid:hover { background: transparent; color: #fff; }
 
-.actions { display: flex; flex-wrap: wrap; gap: 8px; }
-button, .btn {
-  font: inherit;
-  font-weight: 500;
-  font-size: 0.875rem;
-  min-height: 40px;
-  padding: 0 16px;
-  border-radius: 6px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--fg);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+/* ---------- grid ---------- */
+main { max-width: 1280px; margin: 0 auto; padding: 36px max(16px, env(safe-area-inset-left)) 60px; }
+.grid { columns: 3 300px; column-gap: 14px; }
+.tile {
+  display: block; width: 100%; padding: 0; border: 0; background: var(--surface);
+  margin: 0 0 14px; break-inside: avoid; position: relative; overflow: hidden;
 }
-button:hover, .btn:hover { border-color: var(--muted); }
-.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
-.btn-primary:hover { border-color: var(--accent); filter: brightness(1.06); }
-button:focus-visible, .btn:focus-within, .thumb:focus-visible, .stage:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
+.tile img { display: block; width: 100%; height: auto; transition: transform 0.5s ease, opacity 0.4s ease; opacity: 0; }
+.tile img.loaded { opacity: 1; }
+.tile:hover img { transform: scale(1.025); }
+.tile::after {
+  content: ""; position: absolute; inset: 0; background: rgba(0,0,0,0); transition: background 0.3s ease;
 }
-.btn input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-.btn { position: relative; }
+.tile:hover::after { background: rgba(0,0,0,0.08); }
 
-.stage {
-  position: relative;
-  background: var(--stage);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  min-height: 320px;
-  height: min(62vh, 560px);
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  padding: 12px;
+.status { text-align: center; color: var(--muted); padding: 60px 16px; max-width: 52ch; margin: 0 auto; }
+.status strong { display: block; font-family: var(--serif); font-size: 1.6rem; font-weight: 600; color: var(--fg); margin-bottom: 6px; }
+.status code { font-size: 0.85em; background: var(--surface); padding: 1px 6px; border-radius: 4px; }
+.status .pick {
+  display: inline-block; margin-top: 18px; padding: 11px 24px; border: 1px solid var(--fg);
+  font-size: 0.78rem; letter-spacing: 0.16em; text-transform: uppercase; cursor: pointer; position: relative;
 }
-.stage.drag { border-color: var(--accent); border-style: dashed; }
-.stage img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; border-radius: 2px; }
+.status .pick:hover { background: var(--fg); color: var(--bg); }
+.status .pick input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 
-.empty { text-align: center; max-width: 30ch; padding: 16px; color: var(--muted); }
-.empty strong { display: block; color: var(--fg); font-family: var(--font-display); font-size: 1.25rem; margin-bottom: 4px; }
+footer { text-align: center; color: var(--muted); font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; padding: 0 16px 40px; }
+footer label { cursor: pointer; text-decoration: underline; text-underline-offset: 3px; position: relative; }
+footer input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 
-.meta {
-  display: flex; flex-wrap: wrap; gap: 4px 20px; align-items: baseline; justify-content: space-between;
-  min-height: 24px;
+/* ---------- slideshow (lightbox) ---------- */
+.lb {
+  position: fixed; inset: 0; z-index: 100; background: #0b0b0b; color: #fff;
+  display: grid; grid-template-rows: auto 1fr auto auto;
+  opacity: 0; transition: opacity 0.25s ease;
 }
-.meta .name { font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
-.meta .facts { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--muted); font-variant-numeric: tabular-nums; }
-.tag {
-  font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.08em; text-transform: uppercase;
-  border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; margin-left: 8px; color: var(--muted);
+.lb[hidden] { display: none; }
+.lb.open { opacity: 1; }
+.lb-top {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 12px max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left));
+  padding-top: max(12px, env(safe-area-inset-top));
 }
+.lb-count { font-size: 0.78rem; letter-spacing: 0.2em; opacity: 0.8; font-variant-numeric: tabular-nums; }
+.lb-tools { display: flex; gap: 2px; }
+.ib {
+  width: 44px; height: 44px; display: grid; place-items: center; background: none; border: 0; color: #fff; opacity: 0.85; border-radius: 50%;
+}
+.ib:hover { opacity: 1; background: rgba(255,255,255,0.1); }
+.ib svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.lb-stage { position: relative; min-height: 0; display: grid; place-items: center; padding: 0 64px; }
+.lb-stage img {
+  max-width: 100%; max-height: 100%; object-fit: contain; display: block; user-select: none; -webkit-user-drag: none;
+  transition: opacity 0.3s ease;
+}
+.nav {
+  position: absolute; top: 50%; transform: translateY(-50%); width: 52px; height: 52px; border-radius: 50%;
+  background: rgba(255,255,255,0.08); border: 0; color: #fff; display: grid; place-items: center;
+}
+.nav:hover { background: rgba(255,255,255,0.2); }
+.nav svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.nav.prev { left: max(8px, env(safe-area-inset-left)); }
+.nav.next { right: max(8px, env(safe-area-inset-right)); }
+.lb-name { text-align: center; font-size: 0.8rem; letter-spacing: 0.08em; opacity: 0.7; padding: 8px 16px 6px; min-height: 30px; overflow-wrap: anywhere; }
+.lb-thumbs {
+  display: flex; gap: 6px; overflow-x: auto; padding: 6px max(16px, env(safe-area-inset-left)) max(14px, env(safe-area-inset-bottom));
+  scrollbar-width: thin; scrollbar-color: #444 transparent;
+}
+.lb-thumbs button {
+  flex: 0 0 auto; width: 64px; height: 48px; padding: 0; border: 2px solid transparent; background: #1c1c1c; opacity: 0.5; overflow: hidden;
+}
+.lb-thumbs button img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lb-thumbs button[aria-current="true"] { opacity: 1; border-color: #fff; }
+.lb-thumbs button:hover { opacity: 0.9; }
+.progress { position: absolute; left: 0; top: 0; height: 2px; width: 100%; background: rgba(255,255,255,0.75); transform-origin: left; transform: scaleX(0); }
+.progress.run { animation: fill linear forwards; }
+@keyframes fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
-.strip-head { display: flex; justify-content: space-between; align-items: baseline; }
-.label { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-.strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
-.thumb-wrap { position: relative; min-width: 0; }
-.thumb {
-  display: block; width: 100%; aspect-ratio: 4 / 3; padding: 0; min-height: 0;
-  border: 2px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--stage);
+@media (max-width: 640px) {
+  .lb-stage { padding: 0 8px; }
+  .nav { width: 42px; height: 42px; background: rgba(0,0,0,0.35); }
+  .lb-thumbs button { width: 52px; height: 40px; }
+  .grid { column-gap: 8px; }
+  .tile { margin-bottom: 8px; }
+  main { padding-top: 20px; }
 }
-.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.thumb[aria-current="true"] { border-color: var(--accent); }
-.remove {
-  position: absolute; top: 4px; right: 4px; min-height: 0; width: 24px; height: 24px; padding: 0;
-  justify-content: center; border-radius: 50%; font-size: 0.875rem; line-height: 1;
-  background: var(--surface); opacity: 0.92;
-}
-.hint { color: var(--muted); font-size: 0.8125rem; margin: 0; }
-
-@media (max-width: 480px) {
-  .stage { height: 52vh; min-height: 260px; }
-  h1 { font-size: 1.5rem; }
-}
-@media (prefers-reduced-motion: no-preference) {
-  .thumb, .stage { transition: border-color 0.15s ease; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .tile img, .lb, .lb-stage img { transition: none; }
+  .progress.run { animation: none; }
 }
 </style>
+</head>
+<body>
 
-<div class="wrap">
-  <header>
-    <div>
-      <h1>Light Table</h1>
-      <p class="sub">Add images, pick one, and view it large.</p>
+<header class="topbar">
+  <div class="brand" id="brand">Gallery</div>
+  <nav aria-label="Gallery actions">
+    <button class="link-btn" id="topPlay" type="button">Slideshow</button>
+  </nav>
+</header>
+
+<section class="cover" id="cover" aria-label="Cover">
+  <div class="cover-inner">
+    <h1 id="coverTitle">Gallery</h1>
+    <p class="count" id="coverCount" aria-live="polite">Loading…</p>
+    <div class="cover-actions">
+      <button class="btn solid" id="viewBtn" type="button">View gallery</button>
+      <button class="btn" id="playBtn" type="button">Play slideshow</button>
     </div>
-    <div class="actions">
-      <label class="btn btn-primary" for="file">Add images
-        <input id="file" type="file" accept="image/*" multiple>
-      </label>
-      <button id="clear" type="button">Clear all</button>
+  </div>
+</section>
+
+<main id="gallery">
+  <div id="status" class="status" hidden></div>
+  <div id="grid" class="grid" role="list"></div>
+</main>
+
+<footer>
+  <span id="footNote"></span>
+  <label>Preview local images<input id="localFiles" type="file" accept="image/*" multiple></label>
+</footer>
+
+<div class="lb" id="lb" hidden role="dialog" aria-modal="true" aria-label="Slideshow">
+  <div class="progress" id="progress"></div>
+  <div class="lb-top">
+    <div class="lb-count" id="lbCount"></div>
+    <div class="lb-tools">
+      <button class="ib" id="lbPlay" type="button" aria-label="Play slideshow"></button>
+      <button class="ib" id="lbFull" type="button" aria-label="Full screen">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+      </button>
+      <button class="ib" id="lbClose" type="button" aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>
+      </button>
     </div>
-  </header>
-
-  <div id="stage" class="stage" tabindex="0" aria-label="Image viewing area"></div>
-  <div class="meta" id="meta" aria-live="polite"></div>
-
-  <section aria-label="Added images">
-    <div class="strip-head">
-      <span class="label">Images</span>
-      <span class="label" id="count"></span>
-    </div>
-    <div id="strip" class="strip" role="list" style="margin-top:8px"></div>
-  </section>
-
-  <p class="hint">Drop files on the viewing area, paste an image, or use Add images. Files stay in your browser and are not uploaded anywhere.</p>
+  </div>
+  <div class="lb-stage" id="lbStage">
+    <button class="nav prev" id="lbPrev" type="button" aria-label="Previous image">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <img id="lbImg" alt="" draggable="false">
+    <button class="nav next" id="lbNext" type="button" aria-label="Next image">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+  <div class="lb-name" id="lbName"></div>
+  <div class="lb-thumbs" id="lbThumbs"></div>
 </div>
 
 <script>
 (function () {
+  /* ------------------------------------------------------------
+     CONFIG: change these if you like.
+     owner / repo / branch are auto-detected when the page is
+     served from GitHub Pages (username.github.io/repo-name/).
+     Fill them in only if auto-detect picks the wrong repo or you
+     use a custom domain.
+  ------------------------------------------------------------ */
+  var CONFIG = {
+    title: 'My Gallery',     // shown on the cover and top bar
+    folder: 'images',        // folder in the repo that holds your pictures
+    owner: '',               // e.g. 'johndoe'
+    repo: '',                // e.g. 'my-photos'
+    branch: '',              // leave empty to use the default branch
+    interval: 4500           // slideshow speed in milliseconds
+  };
+
+  var EXT = /\.(jpe?g|png|gif|webp|avif|svg|bmp)$/i;
   var items = [];
-  var currentId = null;
-  var nextId = 1;
+  var idx = 0;
+  var playing = false;
+  var timer = null;
+  var lastFocus = null;
 
-  var stage = document.getElementById('stage');
-  var meta = document.getElementById('meta');
-  var strip = document.getElementById('strip');
-  var count = document.getElementById('count');
-  var fileInput = document.getElementById('file');
-  var clearBtn = document.getElementById('clear');
+  var $ = function (id) { return document.getElementById(id); };
+  var grid = $('grid'), statusEl = $('status'), cover = $('cover');
+  var lb = $('lb'), lbImg = $('lbImg'), lbThumbs = $('lbThumbs');
 
-  function fmtSize(b) {
-    if (b < 1024) return b + ' B';
-    if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
-    return (b / 1024 / 1024).toFixed(2) + ' MB';
+  var ICON_PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>';
+  var ICON_PAUSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>';
+
+  document.title = CONFIG.title;
+  $('brand').textContent = CONFIG.title;
+  $('coverTitle').textContent = CONFIG.title;
+
+  /* ---------- helpers ---------- */
+  function natural(a, b) {
+    return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
   }
-  function fmtPx(w, h) {
-    var mp = (w * h) / 1e6;
-    return w + ' × ' + h + ' px · ' + mp.toFixed(mp < 10 ? 2 : 1) + ' MP';
+  function pretty(name) {
+    return name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
   }
-
-  function addBlob(blob, name, sample) {
-    return new Promise(function (resolve) {
-      var url = URL.createObjectURL(blob);
-      var img = new Image();
-      img.onload = function () {
-        var it = { id: nextId++, name: name, url: url, size: blob.size, w: img.naturalWidth, h: img.naturalHeight, sample: !!sample };
-        items.push(it);
-        resolve(it);
-      };
-      img.onerror = function () { URL.revokeObjectURL(url); resolve(null); };
-      img.src = url;
-    });
+  function folderPath() {
+    return CONFIG.folder.replace(/^\/+|\/+$/g, '');
   }
-
-  function addFiles(files) {
-    var list = Array.prototype.filter.call(files, function (f) { return /^image\//.test(f.type); });
-    if (!list.length) return;
-    // Real images replace the sample.
-    items = items.filter(function (it) {
-      if (it.sample) { URL.revokeObjectURL(it.url); return false; }
-      return true;
-    });
-    Promise.all(list.map(function (f) { return addBlob(f, f.name || 'pasted-image'); })).then(function (added) {
-      added = added.filter(Boolean);
-      if (added.length) currentId = added[added.length - 1].id;
-      render();
-    });
+  function srcFor(name) {
+    return folderPath() + '/' + encodeURIComponent(name);
   }
-
-  function render() {
-    // Stage
-    var cur = items.filter(function (i) { return i.id === currentId; })[0];
-    stage.textContent = '';
-    meta.textContent = '';
-    if (cur) {
-      var img = document.createElement('img');
-      img.src = cur.url;
-      img.alt = cur.name;
-      stage.appendChild(img);
-
-      var n = document.createElement('div');
-      n.className = 'name';
-      n.textContent = cur.name;
-      if (cur.sample) {
-        var t = document.createElement('span');
-        t.className = 'tag';
-        t.textContent = 'Sample';
-        n.appendChild(t);
+  function detectRepo() {
+    var owner = CONFIG.owner, repo = CONFIG.repo;
+    var host = location.hostname;
+    if ((!owner || !repo) && /\.github\.io$/i.test(host)) {
+      owner = owner || host.split('.')[0];
+      if (!repo) {
+        var seg = location.pathname.split('/').filter(Boolean)[0];
+        repo = (seg && !/\.html?$/i.test(seg)) ? seg : owner + '.github.io';
       }
-      var f = document.createElement('div');
-      f.className = 'facts';
-      f.textContent = fmtPx(cur.w, cur.h) + ' · ' + fmtSize(cur.size);
-      meta.appendChild(n);
-      meta.appendChild(f);
-    } else {
-      var e = document.createElement('div');
-      e.className = 'empty';
-      var s = document.createElement('strong');
-      s.textContent = 'No image yet';
-      e.appendChild(s);
-      e.appendChild(document.createTextNode('Drop a file here or choose Add images to see it at full size.'));
-      stage.appendChild(e);
     }
+    return owner && repo ? { owner: owner, repo: repo } : null;
+  }
+  function showStatus(titleText, bodyNodes) {
+    statusEl.textContent = '';
+    var s = document.createElement('strong');
+    s.textContent = titleText;
+    statusEl.appendChild(s);
+    (bodyNodes || []).forEach(function (n) {
+      statusEl.appendChild(typeof n === 'string' ? document.createTextNode(n) : n);
+    });
+    statusEl.hidden = false;
+  }
+  function code(t) { var c = document.createElement('code'); c.textContent = t; return c; }
 
-    // Strip
-    strip.textContent = '';
-    count.textContent = items.length + (items.length === 1 ? ' file' : ' files');
-    items.forEach(function (it) {
-      var wrap = document.createElement('div');
-      wrap.className = 'thumb-wrap';
-      wrap.setAttribute('role', 'listitem');
+  /* ---------- loading the image list ---------- */
+  function fromGitHubApi() {
+    var info = detectRepo();
+    if (!info) return Promise.reject(new Error('no repo'));
+    var url = 'https://api.github.com/repos/' + encodeURIComponent(info.owner) + '/' +
+      encodeURIComponent(info.repo) + '/contents/' +
+      folderPath().split('/').map(encodeURIComponent).join('/') +
+      (CONFIG.branch ? '?ref=' + encodeURIComponent(CONFIG.branch) : '');
+    return fetch(url, { headers: { 'Accept': 'application/vnd.github+json' } }).then(function (r) {
+      if (!r.ok) throw new Error('api ' + r.status);
+      return r.json();
+    }).then(function (list) {
+      if (!Array.isArray(list)) throw new Error('not a folder');
+      return list.filter(function (f) { return f.type === 'file' && EXT.test(f.name); })
+        .map(function (f) { return { name: f.name, src: srcFor(f.name) }; });
+    });
+  }
+  function fromManifest() {
+    // Optional fallback: images/manifest.json containing ["a.jpg","b.jpg"]
+    return fetch(folderPath() + '/manifest.json', { cache: 'no-cache' }).then(function (r) {
+      if (!r.ok) throw new Error('no manifest');
+      return r.json();
+    }).then(function (list) {
+      if (!Array.isArray(list)) throw new Error('bad manifest');
+      return list.map(function (n) { return typeof n === 'string' ? n : (n && n.name); })
+        .filter(function (n) { return n && EXT.test(n); })
+        .map(function (n) { return { name: n, src: srcFor(n) }; });
+    });
+  }
 
+  function load() {
+    var isLocal = location.protocol === 'file:';
+    var chain = isLocal ? Promise.reject(new Error('local')) : fromGitHubApi();
+    chain.catch(function (e1) {
+      if (isLocal) throw e1;
+      return fromManifest().catch(function () { throw e1; });
+    }).then(function (list) {
+      items = list.sort(natural);
+      afterLoad(null);
+    }).catch(function (err) {
+      items = [];
+      afterLoad(err);
+    });
+  }
+
+  function afterLoad(err) {
+    renderGrid();
+    if (items.length) {
+      statusEl.hidden = true;
+      return;
+    }
+    var msg = err && err.message ? err.message : '';
+    var isLocal = location.protocol === 'file:';
+    if (isLocal) {
+      showStatus('Previewing locally', [
+        'A page opened from your computer cannot list a folder. Pick some pictures below to preview the gallery, or publish the repo with GitHub Pages and it will read the ', code(folderPath() + '/'), ' folder by itself.',
+        pickButton()
+      ]);
+    } else if (/api 403|api 429/.test(msg)) {
+      showStatus('GitHub is rate-limiting this page', [
+        'GitHub allows a limited number of folder lookups per hour from one network. Wait a little and refresh, or add a ', code(folderPath() + '/manifest.json'), ' file that lists your image names, for example ', code('["one.jpg","two.jpg"]'), '.'
+      ]);
+    } else if (/api 404|not a folder/.test(msg)) {
+      showStatus('No images folder found', [
+        'Create a folder named ', code(folderPath()), ' in the root of the repo, put your pictures in it, and push. Make sure the repository is public.'
+      ]);
+    } else if (msg === 'no repo') {
+      showStatus('Could not work out the repository', [
+        'Set ', code('owner'), ' and ', code('repo'), ' in the CONFIG block at the bottom of ', code('index.html'), ', or add a ', code(folderPath() + '/manifest.json'), ' file listing your image names.'
+      ]);
+    } else {
+      showStatus('No images yet', [
+        'Add pictures (jpg, png, webp, gif) to the ', code(folderPath()), ' folder and push the change.'
+      ]);
+    }
+  }
+  function pickButton() {
+    var l = document.createElement('label');
+    l.className = 'pick';
+    l.appendChild(document.createTextNode('Choose images'));
+    var i = document.createElement('input');
+    i.type = 'file'; i.accept = 'image/*'; i.multiple = true;
+    i.addEventListener('change', function () { addLocal(i.files); });
+    l.appendChild(i);
+    return l;
+  }
+
+  /* ---------- grid + cover ---------- */
+  function renderGrid() {
+    grid.textContent = '';
+    lbThumbs.textContent = '';
+    var n = items.length;
+    $('coverCount').textContent = n ? n + (n === 1 ? ' photo' : ' photos') : 'No photos yet';
+    $('footNote').textContent = n ? '' : '';
+    if (n) {
+      cover.style.backgroundImage = 'url("' + items[0].src.replace(/"/g, '%22') + '")';
+    } else {
+      cover.style.backgroundImage = '';
+    }
+    items.forEach(function (it, i) {
       var b = document.createElement('button');
       b.type = 'button';
-      b.className = 'thumb';
-      b.setAttribute('aria-label', 'Show ' + it.name);
-      b.setAttribute('aria-current', it.id === currentId ? 'true' : 'false');
+      b.className = 'tile';
+      b.setAttribute('role', 'listitem');
+      b.setAttribute('aria-label', 'Open ' + pretty(it.name));
+      var im = document.createElement('img');
+      im.src = it.src;
+      im.alt = pretty(it.name);
+      im.loading = i < 6 ? 'eager' : 'lazy';
+      im.decoding = 'async';
+      im.addEventListener('load', function () { im.classList.add('loaded'); });
+      im.addEventListener('error', function () { b.hidden = true; });
+      if (im.complete && im.naturalWidth) im.classList.add('loaded');
+      b.appendChild(im);
+      b.addEventListener('click', function () { openLb(i, false); });
+      grid.appendChild(b);
+
+      var t = document.createElement('button');
+      t.type = 'button';
+      t.setAttribute('aria-label', 'Show ' + pretty(it.name));
+      t.setAttribute('aria-current', 'false');
       var ti = document.createElement('img');
-      ti.src = it.url;
-      ti.alt = '';
-      b.appendChild(ti);
-      b.addEventListener('click', function () { currentId = it.id; render(); });
-
-      var r = document.createElement('button');
-      r.type = 'button';
-      r.className = 'remove';
-      r.setAttribute('aria-label', 'Remove ' + it.name);
-      r.textContent = '×';
-      r.addEventListener('click', function () { removeItem(it.id); });
-
-      wrap.appendChild(b);
-      wrap.appendChild(r);
-      strip.appendChild(wrap);
+      ti.src = it.src; ti.alt = ''; ti.loading = 'lazy'; ti.decoding = 'async';
+      t.appendChild(ti);
+      t.addEventListener('click', function () { show(i); });
+      lbThumbs.appendChild(t);
     });
   }
 
-  function removeItem(id) {
-    var idx = -1;
-    items.forEach(function (it, i) { if (it.id === id) idx = i; });
-    if (idx < 0) return;
-    URL.revokeObjectURL(items[idx].url);
-    items.splice(idx, 1);
-    if (currentId === id) {
-      var next = items[idx] || items[idx - 1];
-      currentId = next ? next.id : null;
-    }
-    render();
+  /* ---------- slideshow ---------- */
+  function openLb(i, autoplay) {
+    if (!items.length) return;
+    lastFocus = document.activeElement;
+    lb.hidden = false;
+    document.body.style.overflow = 'hidden';
+    requestAnimationFrame(function () { lb.classList.add('open'); });
+    show(i);
+    setPlaying(!!autoplay);
+    $('lbClose').focus();
   }
+  function closeLb() {
+    setPlaying(false);
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+    lb.classList.remove('open');
+    document.body.style.overflow = '';
+    setTimeout(function () { lb.hidden = true; }, 220);
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+  function show(i) {
+    var n = items.length;
+    if (!n) return;
+    idx = (i % n + n) % n;
+    var it = items[idx];
+    var done = 0;
+    lbImg.style.opacity = 0;
+    function swap() {
+      if (++done < 2 || items[idx] !== it) return;
+      lbImg.src = it.src;
+      lbImg.alt = pretty(it.name);
+      lbImg.style.opacity = 1;
+    }
+    var pre = new Image();
+    pre.onload = pre.onerror = swap;
+    pre.src = it.src;
+    setTimeout(swap, 160);
 
-  clearBtn.addEventListener('click', function () {
-    items.forEach(function (it) { URL.revokeObjectURL(it.url); });
-    items = [];
-    currentId = null;
-    render();
-  });
-
-  fileInput.addEventListener('change', function () {
-    addFiles(fileInput.files);
-    fileInput.value = '';
-  });
-
-  ['dragenter', 'dragover'].forEach(function (ev) {
-    stage.addEventListener(ev, function (e) { e.preventDefault(); stage.classList.add('drag'); });
-  });
-  ['dragleave', 'drop'].forEach(function (ev) {
-    stage.addEventListener(ev, function (e) { e.preventDefault(); stage.classList.remove('drag'); });
-  });
-  stage.addEventListener('drop', function (e) {
-    if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
-  });
-  document.addEventListener('paste', function (e) {
-    var files = [];
-    var cd = e.clipboardData;
-    if (cd && cd.items) {
-      for (var i = 0; i < cd.items.length; i++) {
-        if (cd.items[i].kind === 'file') {
-          var f = cd.items[i].getAsFile();
-          if (f) files.push(f);
-        }
+    $('lbCount').textContent = (idx + 1) + ' / ' + n;
+    $('lbName').textContent = pretty(it.name);
+    Array.prototype.forEach.call(lbThumbs.children, function (t, k) {
+      t.setAttribute('aria-current', k === idx ? 'true' : 'false');
+      if (k === idx && t.scrollIntoView) {
+        t.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
       }
-    }
-    if (files.length) { e.preventDefault(); addFiles(files); }
-  });
-
-  // Start with a generated sample so the viewer shows something right away.
-  function makeSample() {
-    var c = document.createElement('canvas');
-    c.width = 1200; c.height = 800;
-    var g = c.getContext('2d');
-    var grad = g.createLinearGradient(0, 0, 1200, 800);
-    grad.addColorStop(0, '#2b3a42');
-    grad.addColorStop(0.55, '#c4401a');
-    grad.addColorStop(1, '#f2b66b');
-    g.fillStyle = grad;
-    g.fillRect(0, 0, 1200, 800);
-    g.strokeStyle = 'rgba(255,255,255,0.28)';
-    g.lineWidth = 2;
-    for (var x = 0; x <= 1200; x += 100) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 800); g.stroke(); }
-    for (var y = 0; y <= 800; y += 100) { g.beginPath(); g.moveTo(0, y); g.lineTo(1200, y); g.stroke(); }
-    g.fillStyle = 'rgba(255,255,255,0.92)';
-    g.font = '600 56px sans-serif';
-    g.fillText('Your image appears here', 80, 420);
-    c.toBlob(function (blob) {
-      if (!blob) { render(); return; }
-      addBlob(blob, 'sample-gradient.png', true).then(function (it) {
-        if (it && !items.some(function (x) { return !x.sample; })) currentId = it.id;
-        render();
-      });
-    }, 'image/png');
+    });
+    if (n > 1) { var nx = new Image(); nx.src = items[(idx + 1) % n].src; }
+    if (playing) schedule();
+  }
+  function schedule() {
+    clearTimeout(timer);
+    var p = $('progress');
+    p.classList.remove('run');
+    void p.offsetWidth;
+    p.style.animationDuration = CONFIG.interval + 'ms';
+    p.classList.add('run');
+    timer = setTimeout(function () { show(idx + 1); }, CONFIG.interval);
+  }
+  function setPlaying(on) {
+    playing = on;
+    var b = $('lbPlay');
+    b.innerHTML = on ? ICON_PAUSE : ICON_PLAY;
+    b.setAttribute('aria-label', on ? 'Pause slideshow' : 'Play slideshow');
+    if (on) { schedule(); }
+    else { clearTimeout(timer); $('progress').classList.remove('run'); }
+  }
+  function toggleFull() {
+    if (document.fullscreenElement) { document.exitFullscreen(); }
+    else if (lb.requestFullscreen) { lb.requestFullscreen().catch(function () {}); }
   }
 
-  render();
-  try { makeSample(); } catch (err) { render(); }
+  /* ---------- local preview (also used when drag-dropping) ---------- */
+  function addLocal(files) {
+    var list = Array.prototype.filter.call(files, function (f) { return /^image\//.test(f.type); });
+    if (!list.length) return;
+    items.forEach(function (it) { if (/^blob:/.test(it.src)) URL.revokeObjectURL(it.src); });
+    items = list.map(function (f) { return { name: f.name, src: URL.createObjectURL(f) }; }).sort(natural);
+    statusEl.hidden = true;
+    renderGrid();
+  }
+
+  /* ---------- events ---------- */
+  $('viewBtn').addEventListener('click', function () {
+    $('gallery').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  function startShow() { openLb(0, true); }
+  $('playBtn').addEventListener('click', startShow);
+  $('topPlay').addEventListener('click', startShow);
+  $('lbClose').addEventListener('click', closeLb);
+  $('lbPlay').addEventListener('click', function () { setPlaying(!playing); });
+  $('lbFull').addEventListener('click', toggleFull);
+  $('lbPrev').addEventListener('click', function () { show(idx - 1); });
+  $('lbNext').addEventListener('click', function () { show(idx + 1); });
+  $('lbStage').addEventListener('click', function (e) {
+    if (e.target === $('lbStage')) closeLb();
+  });
+  $('localFiles').addEventListener('change', function (e) { addLocal(e.target.files); e.target.value = ''; });
+
+  document.addEventListener('keydown', function (e) {
+    if (lb.hidden) return;
+    if (e.key === 'ArrowRight') { show(idx + 1); }
+    else if (e.key === 'ArrowLeft') { show(idx - 1); }
+    else if (e.key === 'Escape') { closeLb(); }
+    else if (e.key === ' ' && e.target.tagName !== 'BUTTON') { e.preventDefault(); setPlaying(!playing); }
+    else if (e.key === 'f' || e.key === 'F') { toggleFull(); }
+  });
+
+  var tx = null;
+  $('lbStage').addEventListener('touchstart', function (e) { tx = e.touches[0].clientX; }, { passive: true });
+  $('lbStage').addEventListener('touchend', function (e) {
+    if (tx === null) return;
+    var dx = e.changedTouches[0].clientX - tx;
+    tx = null;
+    if (Math.abs(dx) > 50) show(idx + (dx < 0 ? 1 : -1));
+  }, { passive: true });
+
+  document.addEventListener('dragover', function (e) { e.preventDefault(); });
+  document.addEventListener('drop', function (e) {
+    e.preventDefault();
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) addLocal(e.dataTransfer.files);
+  });
+
+  $('lbPlay').innerHTML = ICON_PLAY;
+  load();
 })();
 </script>
-
-</body></html>
+</body>
+</html>
